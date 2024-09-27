@@ -1,33 +1,66 @@
-# Strava Stuff
+# Strava Running Analysis
 
-## Project Overview
+This project analyzes personal running data from Strava to calculate Personal Records (PRs), visualize performance, and track progress over time.
 
-This project is centered around interacting with the Strava API to access and analyze personal fitness data. Here's what has been accomplished so far:
+## Features
 
-1. **API Authentication Setup**: 
-   - Obtained necessary credentials (Client ID and Client Secret) from the Strava API.
-   - Implemented the OAuth 2.0 flow to authenticate and authorize access to Strava data.
-   - Successfully retrieved and stored the refresh token for ongoing API access.
+1. **Data Retrieval**: Fetches running activity data from Strava using their API.
+2. **Personal Records (PRs) Calculation**: Identifies best times over standard distances, considering all sub-runs within longer runs.
+3. **PR Visualization**: Plots best pace against distance for a comprehensive view of performance across different distances.
+4. **Animated PR History**: Creates an animated GIF showing how PRs have evolved over time.
+5. **Detailed GPS Analysis**: Processes detailed GPS data to compute accurate paces for sub-sections of runs.
+6. **Best Pace Curve**: Generates a curve showing the best achieved pace for every distance.
+7. **Individual Run Comparison**: Allows comparison of specific runs against the all-time PR curve.
 
-2. **Environment Configuration**:
-   - Created a `.env` file to securely store sensitive information like Client ID, Client Secret, and Refresh Token.
-   - Set up a `.gitignore` file to prevent committing sensitive data and unnecessary files to the repository.
+## Implementation Details
 
-3. **Initial API Integration**:
-   - Established the groundwork for making API calls to Strava using the obtained credentials.
+- Uses Python with libraries such as pandas, numpy, matplotlib, and requests.
+- Implements efficient algorithms to calculate best paces over various distances.
+- Utilizes the Strava API to fetch detailed activity data and streams.
+- Employs data caching to minimize API calls and respect rate limits.
 
-## Next Steps
+## Key Components
 
-The project is currently at an exploratory stage. The immediate plans involve:
+1. **Data Fetching**: 
+   - Retrieves activity data and detailed GPS streams from Strava.
+   - Implements token refresh mechanism for API authentication.
 
-1. **Data Retrieval**: Implementing functions to fetch various types of activity data from Strava.
-2. **Data Analysis**: Exploring the retrieved data to identify interesting patterns or insights.
-3. **Potential Directions**:
-   - Visualizing activity trends over time
-   - Analyzing performance metrics across different activity types
-   - Identifying correlations between various factors (e.g., weather, time of day) and performance
-   - Creating a personal fitness dashboard
+2. **Data Processing**:
+   - Calculates pace and other metrics from raw activity data.
+   - Processes GPS streams to compute accurate sub-run performances.
 
-The ultimate goal is to leverage this Strava data to gain meaningful insights into personal fitness habits and potentially discover areas for improvement or interesting trends in athletic performance.
+3. **PR Calculation**:
+   - Implements algorithms to efficiently find best performances across all possible distances.
 
-As the project evolves, this README will be updated to reflect new developments and findings.
+4. **Visualization**:
+   - Creates static plots for PR curves and pace vs. distance relationships.
+   - Generates animated visualizations to show PR progression over time.
+
+5. **Analysis Tools**:
+   - Provides functions to analyze individual runs and compare them to overall PRs.
+   - Implements logarithmic regression for trend analysis in pace vs. distance curves.
+
+## Usage
+
+[Include instructions on how to set up and run the project, including any required API keys or data files]
+
+## Future Improvements
+
+- Enhance the efficiency of PR calculations for larger datasets.
+- Implement more advanced statistical analysis of running performance.
+- Add features to automatically update Strava activity descriptions with insights.
+
+## Dependencies
+
+- pandas
+- numpy
+- matplotlib
+- requests
+- tqdm
+- imageio
+- scipy
+
+## Note
+
+This project respects Strava's API usage guidelines and implements rate limiting to avoid excessive API calls.
+

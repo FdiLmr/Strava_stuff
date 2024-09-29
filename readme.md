@@ -21,7 +21,7 @@ This repository contains a Python-based tool for analyzing running performance d
 
 ## Sample Output
 
-![Sample PR Analysis Plot](images/best_pace_vs_distance_log_min400_max15000_step100.png)
+![PR Analysis Plot](images/best_pace_vs_distance_log_min400_max15000_step100.png) 
 
 This plot shows:
 - Best achieved paces across different distances

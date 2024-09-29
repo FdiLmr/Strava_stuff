@@ -1,66 +1,52 @@
-# Strava Running Analysis
+# Running Performance Analyzer
 
-This project analyzes personal running data from Strava to calculate Personal Records (PRs), visualize performance, and track progress over time.
+This repository contains a Python-based tool for analyzing running performance data from Strava. It fetches run data, calculates best paces across various distances, and provides visualizations to help runners understand their performance trends.
 
 ## Features
 
-1. **Data Retrieval**: Fetches running activity data from Strava using their API.
-2. **Personal Records (PRs) Calculation**: Identifies best times over standard distances, considering all sub-runs within longer runs.
-3. **PR Visualization**: Plots best pace against distance for a comprehensive view of performance across different distances.
-4. **Animated PR History**: Creates an animated GIF showing how PRs have evolved over time.
-5. **Detailed GPS Analysis**: Processes detailed GPS data to compute accurate paces for sub-sections of runs.
-6. **Best Pace Curve**: Generates a curve showing the best achieved pace for every distance.
-7. **Individual Run Comparison**: Allows comparison of specific runs against the all-time PR curve.
+1. **Strava Data Fetching**: Retrieves detailed GPS data for runs from the Strava API.
+2. **Best Pace Calculation**: Computes the best pace achieved for various distances, considering all possible sub-runs within each activity.
+3. **Performance Trend Analysis**: Uses logarithmic regression to create a performance prediction curve.
+4. **Visualization**: Generates a plot showing best paces vs. distances, with a color-coded curve indicating over- and under-performance relative to the prediction.
 
-## Implementation Details
+## How It Works
 
-- Uses Python with libraries such as pandas, numpy, matplotlib, and requests.
-- Implements efficient algorithms to calculate best paces over various distances.
-- Utilizes the Strava API to fetch detailed activity data and streams.
-- Employs data caching to minimize API calls and respect rate limits.
+1. The script fetches run data from Strava and processes it to extract time and distance information.
+2. It then calculates the best pace achieved for a range of distances (e.g., 400m to 15km).
+3. A logarithmic regression is performed to create a "predicted performance" curve.
+4. The results are visualized in a plot, where:
+   - Green segments indicate distances where performance is better than predicted
+   - Orange segments indicate distances where there's potential for improvement
+   - Vertical and horizontal lines mark key distances and their corresponding paces
 
-## Key Components
+## Sample Output
 
-1. **Data Fetching**: 
-   - Retrieves activity data and detailed GPS streams from Strava.
-   - Implements token refresh mechanism for API authentication.
+![Sample PR Analysis Plot](images/best_pace_vs_distance_log_min400_max15000_step100.png)
 
-2. **Data Processing**:
-   - Calculates pace and other metrics from raw activity data.
-   - Processes GPS streams to compute accurate sub-run performances.
-
-3. **PR Calculation**:
-   - Implements algorithms to efficiently find best performances across all possible distances.
-
-4. **Visualization**:
-   - Creates static plots for PR curves and pace vs. distance relationships.
-   - Generates animated visualizations to show PR progression over time.
-
-5. **Analysis Tools**:
-   - Provides functions to analyze individual runs and compare them to overall PRs.
-   - Implements logarithmic regression for trend analysis in pace vs. distance curves.
+This plot shows:
+- Best achieved paces across different distances
+- A regression curve predicting expected performance
+- Color-coded segments indicating over- and under-performance
+- Markers for standard race distances (400m, 800m, 1km, 5km, etc.)
 
 ## Usage
 
-[Include instructions on how to set up and run the project, including any required API keys or data files]
+[Coming soon]
 
-## Future Improvements
+## Interpretation
 
-- Enhance the efficiency of PR calculations for larger datasets.
-- Implement more advanced statistical analysis of running performance.
-- Add features to automatically update Strava activity descriptions with insights.
+- Green segments suggest distances where you're performing well relative to your overall fitness.
+- Orange segments indicate distances where you might have room for improvement.
+- The regression curve provides a baseline for expected performance across all distances.
+- Use this information to identify strengths, weaknesses, and potential areas for focused training.
 
 ## Dependencies
 
+- Python 3.x
 - pandas
 - numpy
 - matplotlib
-- requests
-- tqdm
-- imageio
-- scipy
+- requests (for API calls)
 
-## Note
 
-This project respects Strava's API usage guidelines and implements rate limiting to avoid excessive API calls.
-
+## More functionalities to come !

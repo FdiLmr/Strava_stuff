@@ -1,0 +1,61 @@
+Feature,Description,Possible Values
+resource_state,,1
+name,Name of the workout that the user has input,Text
+distance,Distance if workout has need of a distance,Float
+moving_time,Moving time in seconds,Float
+elapsed_time,Moving time + time passed if paused the workout,Float
+total_elevation_gain,Total elevation gain during the workout in meters,Float
+type,Type of sport,"Run, Ride, Soccer, WeightTraining"
+sport_type,Same as type ?,Same as type ?
+workout_type,Type of workout,"0 = Unknown Run, 1 = Race, 2 = Long run, 3 = Training,  12 = Bike ride"
+id,id,Float
+start_date,,
+start_date_local,,
+timezone,,
+utc_offset,,
+location_city,,
+location_state,,
+location_country,,
+achievement_count,,
+kudos_count,,
+comment_count,,
+athlete_count,,
+photo_count,,
+trainer,,
+commute,,
+manual,,
+private,,
+visibility,,
+flagged,,
+gear_id,,
+start_latlng,,
+end_latlng,,
+average_speed,,
+max_speed,,
+average_cadence,,
+average_temp,,
+average_watts,,
+max_watts,,
+weighted_average_watts,,
+kilojoules,,
+device_watts,,
+has_heartrate,,
+average_heartrate,,
+max_heartrate,,
+heartrate_opt_out,,
+display_hide_heartrate_option,,
+elev_high,,
+elev_low,,
+upload_id,,
+upload_id_str,,
+external_id,,
+from_accepted_tag,,
+pr_count,,
+total_photo_count,,
+has_kudoed,,
+suffer_score,,
+athlete.id,,
+athlete.resource_state,,
+map.id,,
+map.summary_polyline,,
+map.resource_state,,

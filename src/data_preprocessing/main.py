@@ -29,7 +29,10 @@ class StravaDataPreprocessor:
         # Calculate heart rate features where available
         df['avg_heart_rate'] = pd.to_numeric(df['average_heartrate'], errors='coerce')
         df['max_heart_rate'] = pd.to_numeric(df['max_heartrate'], errors='coerce')
-        df['heart_rate_reserve_used'] = (df['avg_heart_rate'] - 60) / (df['max_heart_rate'] - 60)
+        df['heart_rate_reserve_used'] = (df['avg_heart_rate'] - 51) / (195 - 51)
+        
+        # Calculate Training Impulse
+        df['training_impulse'] = pd.to_numeric(df['suffer_score'], errors='coerce') * 1.3
         
         # Extract elevation and intensity features
         df['elevation_gain'] = pd.to_numeric(df['total_elevation_gain'], errors='coerce')
@@ -39,7 +42,6 @@ class StravaDataPreprocessor:
         df['day_of_week'] = df['start_date'].dt.dayofweek
         df['month'] = df['start_date'].dt.month
         df['year'] = df['start_date'].dt.year
-        df['is_weekend'] = df['day_of_week'].isin([5, 6]).astype(int)
         
         # Calculate rolling statistics
         df = df.sort_values('start_date')
@@ -66,7 +68,6 @@ class StravaDataPreprocessor:
             'day_of_week',
             'month',
             'year',
-            'is_weekend',
             
             # Basic metrics
             'distance_km',
@@ -74,10 +75,11 @@ class StravaDataPreprocessor:
             'pace_min_km',
             'speed_kmh',
             
-            # Heart rate
+            # Heart rate and intensity
             'avg_heart_rate',
             'max_heart_rate',
             'heart_rate_reserve_used',
+            'training_impulse',
             
             # Elevation
             'elevation_gain',
@@ -163,8 +165,7 @@ class StravaDataPreprocessor:
             
             # Time-based metrics
             'days_in_training': (training_data['start_date'].max() - 
-                               training_data['start_date'].min()).days,
-            'weekend_run_ratio': training_data['is_weekend'].mean()
+                               training_data['start_date'].min()).days
         }
         
         return pd.DataFrame([features])

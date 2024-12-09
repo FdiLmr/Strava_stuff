@@ -33,5 +33,5 @@ def fetch_strava_data():
     # Preprocess and save the data
     df = data_prep.preprocess_data(all_data)
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    df.to_csv(Path('data', f'my_activity_data={timestamp}.csv'), index=False)
+    df.to_csv(Path('./data', f'my_activity_data={timestamp}.csv'), index=False)
     print(f"Total activities fetched: {len(df)}")

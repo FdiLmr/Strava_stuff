@@ -1,11 +1,16 @@
 from src.data_preprocessing.main import StravaDataPreprocessor
+from src.fetch_strava_data import fetch_strava_data
 from datetime import datetime, timedelta
 import pandas as pd
 from pathlib import Path
 
 def main():
+    
+    fetch_strava_data()
+
     # Initialize preprocessor with your latest data file
-    data_file = 'data/my_activity_data=20241206180702.csv'
+    data_file = 'data/my_activity_data=20241209223346.csv'
+    print(f"Attempting to read from: {data_file}")
     preprocessor = StravaDataPreprocessor(data_file)
 
     # Preprocess the data

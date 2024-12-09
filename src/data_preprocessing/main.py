@@ -20,6 +20,9 @@ class StravaDataPreprocessor:
         # Convert date columns to datetime
         df['start_date'] = pd.to_datetime(df['start_date_local'])
         
+        # Add is_race column (workout_type 1 indicates a race)
+        df['is_race'] = (df['workout_type'] == 1).astype(int)
+        
         # Extract basic features
         df['distance_km'] = df['distance'].astype(float) / 1000
         df['duration_minutes'] = df['moving_time'].astype(float) / 60
@@ -74,6 +77,7 @@ class StravaDataPreprocessor:
             'duration_minutes',
             'pace_min_km',
             'speed_kmh',
+            'is_race',
             
             # Heart rate and intensity
             'avg_heart_rate',

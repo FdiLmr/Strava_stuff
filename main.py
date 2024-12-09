@@ -9,7 +9,7 @@ def main():
     fetch_strava_data()
 
     # Initialize preprocessor with your latest data file
-    data_file = 'data/my_activity_data=20241209223346.csv'
+    data_file = 'data/my_activity_data=20241209224822.csv'
     print(f"Attempting to read from: {data_file}")
     preprocessor = StravaDataPreprocessor(data_file)
 

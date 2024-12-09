@@ -1,58 +1,47 @@
 from src.data_preprocessing.main import StravaDataPreprocessor
 from src.fetch_strava_data import fetch_strava_data
-from src.models.model_comparison import ModelComparison
-from datetime import datetime, timedelta
+from src.models.race_predictor import RacePredictor
+from datetime import datetime
 import pandas as pd
 from pathlib import Path
 
 def main():
     fetch_strava_data()
 
-    # Initialize preprocessor with your latest data file
-    data_file = 'data/my_activity_data=20241209224822.csv'
-    print(f"Attempting to read from: {data_file}")
-    preprocessor = StravaDataPreprocessor(data_file)
-
-    # Preprocess the data
-    print("Preprocessing data...")
-    processed_data = preprocessor.preprocess()
-    print(f"Processed {len(processed_data)} activities\n")
-
-    # Save preprocessed data
-    output_dir = Path('data/processed')
-    output_dir.mkdir(exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = output_dir / f'processed_activities_{timestamp}.csv'
-    processed_data.to_csv(output_file, index=False)
-    print(f"Saved preprocessed data to: {output_file}\n")
-
-    # Print basic statistics
-    print("Basic Statistics:")
-    print(f"Total runs: {len(processed_data)}")
-    print(f"Date range: {processed_data['start_date'].min()} to {processed_data['start_date'].max()}")
-    print(f"Average distance: {processed_data['distance_km'].mean():.2f} km")
-    print(f"Average pace: {processed_data['pace_min_km'].mean():.2f} min/km\n")
-
-    # Compare different models
-    print("\nComparing Different Models...")
-    model_comparison = ModelComparison()
-    results = model_comparison.train_and_evaluate(processed_data)
+    # Load and preprocess Strava data
+    strava_file = 'data/my_activity_data=20241209224822.csv'
+    print(f"Loading Strava data from: {strava_file}")
+    preprocessor = StravaDataPreprocessor(strava_file)
+    strava_data = preprocessor.preprocess()
     
-    # Print results for each model
-    for model_name, metrics in results.items():
-        print(f"\n{model_name} Performance:")
-        print(f"Training RMSE: {metrics['train_rmse']:.2f} bpm")
-        print(f"Test RMSE: {metrics['test_rmse']:.2f} bpm")
-        print(f"Training R²: {metrics['train_r2']:.3f}")
-        print(f"Test R²: {metrics['test_r2']:.3f}")
-        
-        if 'feature_importance' in metrics:
-            print("\nFeature Importance:")
-            for feature, importance in metrics['feature_importance'].items():
-                print(f"{feature}: {importance:.3f}")
+    # Load Garmin predictions
+    garmin_file = 'data/Garmin_data/Garmin_RunRacePredictions_20240418_20250212.csv'
+    print(f"Loading Garmin data from: {garmin_file}")
+    garmin_data = pd.read_csv(garmin_file)
     
-    # Plot comparison
-    model_comparison.plot_comparison()
+    # Initialize and train race predictor
+    print("\nTraining Race Prediction Models...")
+    predictor = RacePredictor()
+    X_train, X_test, y_train, y_test = predictor.prepare_data(strava_data, garmin_data)
+    
+    predictor.train(X_train, y_train)
+    results = predictor.evaluate(X_test, y_test)
+    
+    # Print results
+    for distance, metrics in results.items():
+        print(f"\n{distance} Race Predictions:")
+        print(f"RMSE: {metrics['rmse']:.2f} minutes")
+        print(f"R²: {metrics['r2']:.3f}")
+        print("\nFeature Importance:")
+        for feature, importance in sorted(
+            metrics['feature_importance'].items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:5]:
+            print(f"{feature}: {importance:.3f}")
+    
+    # Plot predictions
+    predictor.plot_predictions(X_test, y_test)
 
 if __name__ == '__main__':
     main()

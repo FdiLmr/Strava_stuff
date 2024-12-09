@@ -1,11 +1,11 @@
 from src.data_preprocessing.main import StravaDataPreprocessor
 from src.fetch_strava_data import fetch_strava_data
+from src.models.model_comparison import ModelComparison
 from datetime import datetime, timedelta
 import pandas as pd
 from pathlib import Path
 
 def main():
-    
     fetch_strava_data()
 
     # Initialize preprocessor with your latest data file
@@ -26,37 +26,33 @@ def main():
     processed_data.to_csv(output_file, index=False)
     print(f"Saved preprocessed data to: {output_file}\n")
 
-    # Print some basic statistics
+    # Print basic statistics
     print("Basic Statistics:")
     print(f"Total runs: {len(processed_data)}")
     print(f"Date range: {processed_data['start_date'].min()} to {processed_data['start_date'].max()}")
     print(f"Average distance: {processed_data['distance_km'].mean():.2f} km")
     print(f"Average pace: {processed_data['pace_min_km'].mean():.2f} min/km\n")
 
-    # Get training features for current date
-    print("Recent Training Features:")
-    current_date = datetime.now()
-    training_features = preprocessor.get_training_features(current_date)
-    if training_features is not None:
-        for feature, value in training_features.iloc[0].items():
-            if pd.notnull(value):  # Only print non-null values
-                print(f"{feature}: {value:.2f}")
-    print()
-
-    # Look at some specific race distances
-    distances = [5, 10, 21.1]  # 5K, 10K, Half Marathon
-    for distance in distances:
-        print(f"\nAnalyzing {distance}km runs:")
-        relevant_runs = preprocessor.get_race_relevant_runs(distance)
-        if len(relevant_runs) > 0:
-            print(f"Found {len(relevant_runs)} similar runs")
-            print("\nTop 3 performances:")
-            top_3 = relevant_runs.head(3)[['start_date', 'distance_km', 'pace_min_km', 'relative_performance']]
-            pd.set_option('display.max_columns', None)
-            pd.set_option('display.width', None)
-            print(top_3.to_string())
-        else:
-            print(f"No runs found close to {distance}km")
+    # Compare different models
+    print("\nComparing Different Models...")
+    model_comparison = ModelComparison()
+    results = model_comparison.train_and_evaluate(processed_data)
+    
+    # Print results for each model
+    for model_name, metrics in results.items():
+        print(f"\n{model_name} Performance:")
+        print(f"Training RMSE: {metrics['train_rmse']:.2f} bpm")
+        print(f"Test RMSE: {metrics['test_rmse']:.2f} bpm")
+        print(f"Training R²: {metrics['train_r2']:.3f}")
+        print(f"Test R²: {metrics['test_r2']:.3f}")
+        
+        if 'feature_importance' in metrics:
+            print("\nFeature Importance:")
+            for feature, importance in metrics['feature_importance'].items():
+                print(f"{feature}: {importance:.3f}")
+    
+    # Plot comparison
+    model_comparison.plot_comparison()
 
 if __name__ == '__main__':
     main()

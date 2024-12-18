@@ -57,12 +57,15 @@ def get_athlete_data_status(athlete_id):
 def queue_athlete_for_processing(athlete_id, bearer_token, refresh_token):
 
     import pandas as pd  
-      
+    
     processing_status = read_db('processing_status')
-    processing_status = processing_status.append({'athlete_id': athlete_id,
-                                                  'status': 'none',
-                                                  'bearer_token': bearer_token,
-                                                  'refresh_token': refresh_token}, ignore_index = True)
+    new_row = pd.DataFrame([{
+        'athlete_id': athlete_id,
+        'status': 'none',
+        'bearer_token': bearer_token,
+        'refresh_token': refresh_token
+    }])
+    processing_status = pd.concat([processing_status, new_row], ignore_index=True)
     write_db_replace(processing_status, 'processing_status')           
     
     return "none"

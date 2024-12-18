@@ -39,8 +39,14 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 @app.route('/')
-def home():
-    return "Welcome to the Strava Data Fetcher!"
+def render_index():
+    return render_template('index.html')
+
+@app.route('/about')
+def render_about():
+    return render_template('about.html')
+
+
 
 def authorize_url():
     """Generate authorization uri"""
@@ -103,6 +109,7 @@ def authorization_successful():
             session['token'] = response_data['access_token']
             logger.debug(f"Stored new token in session: {session['token']}")
             athlete_data = get_athlete(session['token'])
+            queue_athlete_for_processing(athlete_data['id'], response_data['access_token'], response_data['refresh_token'])
         else:
             logger.error(f"Error fetching access token: {r.text}")
             return "Error fetching access token. Please try again later."
@@ -122,7 +129,6 @@ def authorization_successful():
     elif athlete_data_status in ['processing', 'none']:
         return render_template('processing.html', status='processing')
     else:
-        queue_athlete_for_processing(athlete_id, r.json()['access_token'], r.json()['refresh_token'])
         return render_template('processing.html', status='none')
 
 if __name__ == '__main__':

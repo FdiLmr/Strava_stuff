@@ -6,7 +6,7 @@ import requests
 import os
 import logging
 import urllib.parse
-from sql_methods import init_db, db
+from sql_methods import init_db, db, test_conn_new
 
 # Load environment variables from .env file
 env = Env()
@@ -46,7 +46,9 @@ def render_index():
 def render_about():
     return render_template('about.html')
 
-
+@app.route('/sql')
+def render_sql_test():
+    return test_conn_new()
 
 def authorize_url():
     """Generate authorization uri"""

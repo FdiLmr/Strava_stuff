@@ -1,6 +1,7 @@
 from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
 import pandas as pd
+from sqlalchemy import text
 
 db = SQLAlchemy()
 
@@ -28,8 +29,10 @@ def delete_rows(df_name):
 def test_conn_new():    
     try:
         with current_app.app_context():
-            query = db.engine.execute('show tables')
-            return 'pass'
+            with db.engine.connect() as connection:
+                result = connection.execute(text('SHOW TABLES'))
+                tables = result.fetchall()
+                return 'pass' if tables else 'no tables found'
     except Exception as e:
         return str(e)
 

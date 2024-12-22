@@ -6,7 +6,8 @@ import requests
 import os
 import logging
 import urllib.parse
-from sql_methods import init_db, db, test_conn_new
+from sqlalchemy import inspect
+from sql_methods import init_db, db, test_conn_new, read_db, write_db_replace
 
 # Load environment variables from .env file
 env = Env()
@@ -33,6 +34,40 @@ init_db(app)
 # Create tables
 with app.app_context():
     db.create_all()
+
+def create_required_tables():
+    with app.app_context():
+        inspector = inspect(db.engine)
+        
+        # Check if tables exist
+        existing_tables = inspector.get_table_names()
+        
+        if 'processing_status' not in existing_tables:
+            db.create_all()
+            
+        if 'daily_limit' not in existing_tables:
+            with db.engine.connect() as conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS daily_limit (
+                        daily INTEGER NOT NULL
+                    )
+                """)
+                conn.execute("INSERT INTO daily_limit (daily) VALUES (0)")
+                conn.commit()
+                
+        if 'metadata_athletes' not in existing_tables:
+            with db.engine.connect() as conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS metadata_athletes (
+                        id VARCHAR(100) PRIMARY KEY,
+                        sex VARCHAR(10),
+                        weight FLOAT,
+                        zones TEXT
+                    )
+                """)
+                conn.commit()
+
+create_required_tables()
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -74,6 +109,27 @@ def login():
     logger.debug(f"Using CLIENT_ID: {CLIENT_ID}")
     return redirect(authorize_url())
 
+@app.route('/update_tokens')
+def update_tokens():
+    from update_data import refresh_tokens
+    res = refresh_tokens()
+    print(res)
+    return str(res), 200
+
+def refresh_access_token(refresh_token):
+    params = {
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token
+    }
+    r = requests.post("https://www.strava.com/oauth/token", data=params)
+    if r.status_code == 200:
+        return r.json()
+    else:
+        logger.error(f"Error refreshing access token: {r.text}")
+        return None
+
 @app.route("/authorization_successful")
 def authorization_successful():
     from fetch_athlete_data import get_athlete, get_athlete_data_status, queue_athlete_for_processing
@@ -83,11 +139,26 @@ def authorization_successful():
     
     # Get the token from session with a default value of None
     token = session.get('token')
+    refresh_token = session.get('refresh_token')
     logger.debug(f"Retrieved token from session: {token}")
     
     if token:
         logger.debug("Using existing token")
         athlete_data = get_athlete(token)
+        if athlete_data is None:
+            logger.debug("Token expired, refreshing token")
+            response_data = refresh_access_token(refresh_token)
+            if response_data:
+                session['token'] = response_data['access_token']
+                session['refresh_token'] = response_data['refresh_token']
+                athlete_data = get_athlete(session['token'])
+                if athlete_data is None:
+                    return "Error requesting athlete data from Strava. Please try again later."
+                queue_athlete_for_processing(athlete_data['id'], response_data['access_token'], response_data['refresh_token'])
+            else:
+                logger.debug("Invalid refresh token, clearing session and redirecting to authorization page")
+                session.clear()
+                return redirect(authorize_url())
     else:
         logger.debug("No existing token, exchanging code for token")
         code = request.args.get('code')
@@ -109,8 +180,11 @@ def authorization_successful():
         if r.status_code == 200:
             response_data = r.json()
             session['token'] = response_data['access_token']
+            session['refresh_token'] = response_data['refresh_token']
             logger.debug(f"Stored new token in session: {session['token']}")
             athlete_data = get_athlete(session['token'])
+            if athlete_data is None:
+                return "Error requesting athlete data from Strava. Please try again later."
             queue_athlete_for_processing(athlete_data['id'], response_data['access_token'], response_data['refresh_token'])
         else:
             logger.error(f"Error fetching access token: {r.text}")
@@ -132,6 +206,39 @@ def authorization_successful():
         return render_template('processing.html', status='processing')
     else:
         return render_template('processing.html', status='none')
+
+@app.route('/process_data')
+def process_data():
+    from update_data import update_data
+    res = update_data()
+    logger.info(f"Data processing result: {res}")
+    return str(res), 200
+
+@app.route('/reset_processing')
+def reset_processing():
+    try:
+        processing_status = read_db('processing_status')
+        processing_status['status'] = 'none'
+        write_db_replace(processing_status, 'processing_status')
+        return "Processing status reset successfully", 200
+    except Exception as e:
+        logger.error(f"Error resetting processing status: {e}")
+        return f"Error: {str(e)}", 500
+
+@app.route('/view_athletes')
+def view_athletes():
+    try:
+        metadata_athletes = read_db('metadata_athletes')
+        athletes_html = metadata_athletes.to_html(classes='table table-striped', index=False)
+        return f"""
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <div class="container mt-5">
+            <h2>Athletes in Database</h2>
+            {athletes_html}
+        </div>
+        """
+    except Exception as e:
+        return f"Error retrieving athlete data: {str(e)}"
 
 if __name__ == '__main__':
     app.run(debug=True)

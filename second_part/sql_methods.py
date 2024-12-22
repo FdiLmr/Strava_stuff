@@ -23,8 +23,14 @@ def write_db_insert(df, name):
         df.to_sql(name, con=db.engine, if_exists='append', index=False)
 
 def delete_rows(df_name):    
-    with current_app.app_context():
-        db.engine.execute(f'DELETE FROM {df_name};')
+    try:
+        with current_app.app_context():
+            with db.engine.connect() as connection:
+                result = connection.execute(text(f'DELETE FROM {df_name};'))
+                return True
+    except Exception as e:
+        logger.error(f"Error deleting rows from {df_name}: {e}")
+        return False
 
 def test_conn_new():    
     try:

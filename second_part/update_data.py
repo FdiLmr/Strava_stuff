@@ -164,14 +164,15 @@ def update_data():
                     
                     logger.info(f"Found {len(all_activities)} total activities, {len(unprocessed)} new ones")
                     
+                    # Store what we found, even if zero new activities
+                    activities = []
+                    new_activities_count = 0
+                    
                     if len(unprocessed) > 0:
                         """
                         GET DETAILED ACTIVITY DATA
                         ------------------------
                         """
-                        activities = []
-                        new_activities_count = 0
-                        
                         for activity in unprocessed[:activities_to_process]:
                             start = time.time()
                             
@@ -219,9 +220,13 @@ def update_data():
                             logger.error(f"Error committing activities to database: {e}")
                             db.session.rollback()
                             raise
-
                     else:
-                        return "athlete rejected - too few activities"
+                        logger.info(f"No new activities to process for athlete {athlete_id}")
+                    
+                    # Always continue with metadata and stats
+                    athlete_data["_Zones"] = athlete_zones
+                    athlete_data["_Stats"] = athlete_stats
+                    athlete_data["_Activities"] = activities
                     
                 except Exception as ex:                    
                     daily_limit.at[0, 'daily'] = current_api_calls

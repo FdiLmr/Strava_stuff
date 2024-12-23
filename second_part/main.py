@@ -6,8 +6,13 @@ import requests
 import os
 import logging
 import urllib.parse
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 from sql_methods import init_db, db, test_conn_new, read_db, write_db_replace
+from models import ProcessingStatus, Activity, AthleteStats  # Add this import
+
+# Configure logging first
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 env = Env()
@@ -38,40 +43,36 @@ with app.app_context():
 def create_required_tables():
     with app.app_context():
         inspector = inspect(db.engine)
-        
-        # Check if tables exist
         existing_tables = inspector.get_table_names()
         
-        if 'processing_status' not in existing_tables:
-            db.create_all()
-            
+        logger.info(f"Current tables: {existing_tables}")
+        
+        # Force create all tables from models
+        db.create_all()
+        
+        # Initialize processing_status if empty
+        if 'processing_status' in existing_tables:
+            with db.engine.connect() as conn:
+                result = conn.execute(text("SELECT COUNT(*) FROM processing_status")).scalar()
+                logger.info(f"Processing status entries: {result}")
+        
+        # Initialize daily_limit if it doesn't exist
         if 'daily_limit' not in existing_tables:
             with db.engine.connect() as conn:
-                conn.execute("""
+                conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS daily_limit (
                         daily INTEGER NOT NULL
                     )
-                """)
-                conn.execute("INSERT INTO daily_limit (daily) VALUES (0)")
+                """))
+                conn.execute(text("INSERT INTO daily_limit (daily) VALUES (0)"))
                 conn.commit()
-                
-        if 'metadata_athletes' not in existing_tables:
-            with db.engine.connect() as conn:
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS metadata_athletes (
-                        id VARCHAR(100) PRIMARY KEY,
-                        sex VARCHAR(10),
-                        weight FLOAT,
-                        zones TEXT
-                    )
-                """)
-                conn.commit()
+        
+        # Log created tables
+        updated_tables = inspect(db.engine).get_table_names()
+        logger.info(f"Available tables after creation: {updated_tables}")
 
+# Move create_tables call after all imports and configurations
 create_required_tables()
-
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 @app.route('/')
 def render_index():
@@ -154,7 +155,6 @@ def authorization_successful():
                 athlete_data = get_athlete(session['token'])
                 if athlete_data is None:
                     return "Error requesting athlete data from Strava. Please try again later."
-                queue_athlete_for_processing(athlete_data['id'], response_data['access_token'], response_data['refresh_token'])
             else:
                 logger.debug("Invalid refresh token, clearing session and redirecting to authorization page")
                 session.clear()
@@ -185,7 +185,6 @@ def authorization_successful():
             athlete_data = get_athlete(session['token'])
             if athlete_data is None:
                 return "Error requesting athlete data from Strava. Please try again later."
-            queue_athlete_for_processing(athlete_data['id'], response_data['access_token'], response_data['refresh_token'])
         else:
             logger.error(f"Error fetching access token: {r.text}")
             return "Error fetching access token. Please try again later."
@@ -193,19 +192,27 @@ def authorization_successful():
     try:
         athlete_id = athlete_data['id']
         logger.debug(f"Retrieved athlete_id: {athlete_id}")
+        
+        # Queue athlete for processing regardless of current status
+        queue_result = queue_athlete_for_processing(
+            athlete_id, 
+            session['token'],
+            session['refresh_token']
+        )
+        logger.info(f"Queue result: {queue_result}")
+        
+        # Check status after queueing
+        athlete_data_status = get_athlete_data_status(athlete_id)
+        logger.debug(f"Athlete data status: {athlete_data_status}")
+        
+        if athlete_data_status == 'processed':
+            return render_template("render.html", athlete_id=athlete_id, random_num=str(os.urandom(8).hex()))
+        else:
+            return render_template('processing.html', status='processing')
+            
     except KeyError as e:
         logger.error(f"Error accessing athlete data: {str(e)}")
         return "Error retrieving athlete data. Please try again later."
-    
-    athlete_data_status = get_athlete_data_status(athlete_id)
-    logger.debug(f"Athlete data status: {athlete_data_status}")
-    
-    if athlete_data_status == 'processed':
-        return render_template("render.html", athlete_id=athlete_id, random_num=str(os.urandom(8).hex()))
-    elif athlete_data_status in ['processing', 'none']:
-        return render_template('processing.html', status='processing')
-    else:
-        return render_template('processing.html', status='none')
 
 @app.route('/process_data')
 def process_data():
@@ -239,6 +246,38 @@ def view_athletes():
         """
     except Exception as e:
         return f"Error retrieving athlete data: {str(e)}"
+
+@app.route('/view_activities/<athlete_id>')
+def view_activities(athlete_id):
+    try:
+        activities = db.session.query(Activity).filter_by(athlete_id=athlete_id).all()
+        activities_data = [{
+            'id': a.id,
+            'name': a.name,
+            'distance': f"{a.distance/1000:.2f}km",
+            'time': f"{a.moving_time//60}min",
+            'date': a.start_date.strftime('%Y-%m-%d'),
+            'type': a.type,
+            'avg_hr': f"{a.average_heartrate:.0f}" if a.average_heartrate else "N/A"
+        } for a in activities]
+        
+        return render_template(
+            'activities.html',
+            activities=activities_data,
+            athlete_id=athlete_id
+        )
+    except Exception as e:
+        return f"Error retrieving activities: {str(e)}"
+
+@app.route('/view_stats/<athlete_id>')
+def view_stats(athlete_id):
+    try:
+        stats = db.session.query(AthleteStats).get(athlete_id)
+        if stats:
+            return render_template('stats.html', stats=stats)
+        return "No stats found for this athlete"
+    except Exception as e:
+        return f"Error retrieving stats: {str(e)}"
 
 if __name__ == '__main__':
     app.run(debug=True)

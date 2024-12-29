@@ -12,7 +12,7 @@ import json
 
 logger = logging.getLogger(__name__)
 
-DEBUG_MODE = True  # Set to False in production
+DEBUG_MODE = False  # Set to False in production
 ACTIVITIES_LIMIT = 10 if DEBUG_MODE else 90
 
 def refresh_tokens():    

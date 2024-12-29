@@ -214,10 +214,19 @@ def authorization_successful():
         logger.error(f"Error accessing athlete data: {str(e)}")
         return "Error retrieving athlete data. Please try again later."
 
-@app.route('/process_data')
-def process_data():
-    from update_data import update_data
-    res = update_data()
+@app.route('/fetch_strava_data')
+def fetch_strava_data():
+    """Fetch raw data from Strava API and store in files/DB."""
+    from update_data import fetch_strava_data
+    res = fetch_strava_data()
+    logger.info(f"Strava data fetch result: {res}")
+    return str(res), 200
+
+@app.route('/process_stored_data')
+def process_stored_data():
+    """Process data from stored files into analytics tables."""
+    from update_data import process_stored_data
+    res = process_stored_data()
     logger.info(f"Data processing result: {res}")
     return str(res), 200
 
@@ -236,14 +245,7 @@ def reset_processing():
 def view_athletes():
     try:
         metadata_athletes = read_db('metadata_athletes')
-        athletes_html = metadata_athletes.to_html(classes='table table-striped', index=False)
-        return f"""
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-        <div class="container mt-5">
-            <h2>Athletes in Database</h2>
-            {athletes_html}
-        </div>
-        """
+        return render_template('view_athletes.html', athletes=metadata_athletes)
     except Exception as e:
         return f"Error retrieving athlete data: {str(e)}"
 
@@ -254,11 +256,24 @@ def view_activities(athlete_id):
         activities_data = [{
             'id': a.id,
             'name': a.name,
-            'distance': f"{a.distance/1000:.2f}km",
-            'time': f"{a.moving_time//60}min",
+            'distance_raw': a.distance/1000,  # Raw numeric value for sorting
+            'distance': f"{a.distance/1000:.2f}km",  # Formatted for display
+            'time_raw': a.moving_time//60,  # Raw numeric value for sorting
+            'time': f"{a.moving_time//60}min",  # Formatted for display
+            'elapsed_time_raw': a.elapsed_time//60,  # Raw numeric value for sorting
+            'elapsed_time': f"{a.elapsed_time//60}min",  # Formatted for display
             'date': a.start_date.strftime('%Y-%m-%d'),
             'type': a.type,
-            'avg_hr': f"{a.average_heartrate:.0f}" if a.average_heartrate else "N/A"
+            'total_elevation_gain_raw': float(a.total_elevation_gain or 0),  # Raw numeric value
+            'total_elevation_gain': f"{a.total_elevation_gain:.0f}m" if a.total_elevation_gain else "N/A",
+            'average_speed_raw': float(a.average_speed * 3.6 if a.average_speed else 0),  # Raw numeric value
+            'average_speed': f"{a.average_speed * 3.6:.1f}km/h" if a.average_speed else "N/A",
+            'max_speed_raw': float(a.max_speed * 3.6 if a.max_speed else 0),  # Raw numeric value
+            'max_speed': f"{a.max_speed * 3.6:.1f}km/h" if a.max_speed else "N/A",
+            'avg_hr_raw': float(a.average_heartrate or 0),  # Raw numeric value
+            'avg_hr': f"{a.average_heartrate:.0f}" if a.average_heartrate else "N/A",
+            'max_hr_raw': float(a.max_heartrate or 0),  # Raw numeric value
+            'max_hr': f"{a.max_heartrate:.0f}" if a.max_heartrate else "N/A"
         } for a in activities]
         
         return render_template(
@@ -272,12 +287,60 @@ def view_activities(athlete_id):
 @app.route('/view_stats/<athlete_id>')
 def view_stats(athlete_id):
     try:
-        stats = db.session.query(AthleteStats).get(athlete_id)
+        stats = db.session.get(AthleteStats, athlete_id)
         if stats:
             return render_template('stats.html', stats=stats)
         return "No stats found for this athlete"
     except Exception as e:
         return f"Error retrieving stats: {str(e)}"
+
+@app.route('/reset_activities')
+def reset_activities():
+    try:
+        with app.app_context():
+            # Clear activities and stats tables
+            db.session.query(Activity).delete()
+            db.session.query(AthleteStats).delete()
+            
+            # Reset processing status to 'none'
+            processing_status = read_db('processing_status')
+            processing_status['status'] = 'none'
+            write_db_replace(processing_status, 'processing_status')
+            
+            # Reset API call counter
+            daily_limit = read_db('daily_limit')
+            daily_limit.at[0, 'daily'] = 0
+            write_db_replace(daily_limit, 'daily_limit')
+            
+            db.session.commit()
+            
+            logger.info("Successfully reset activities and processing status")
+            return "Activities cleared and reset successfully. You can now run the processing again.", 200
+    except Exception as e:
+        logger.error(f"Error resetting activities: {e}")
+        db.session.rollback()
+        return f"Error: {str(e)}", 500
+
+@app.route('/reset_database')
+def reset_database():
+    from sql_methods import reset_database
+    
+    logger.info("Starting database reset")
+    if reset_database():
+        logger.info("Database reset successful")
+        return "Database reset successful. Tables have been cleared.", 200
+    else:
+        return "Error resetting database", 500
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/')
+
+@app.context_processor
+def inject_user():
+    """Make session available to all templates"""
+    return dict(session=session)
 
 if __name__ == '__main__':
     app.run(debug=True)

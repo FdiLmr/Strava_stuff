@@ -34,10 +34,111 @@ def read_db(table_name):
         return pd.DataFrame()
 
 def write_db_replace(df, table_name):
+    """Write DataFrame to database, creating table if needed."""
     try:
+        # Don't try to write empty DataFrames without schema
+        if df.empty and len(df.columns) == 0:
+            logger.info(f"Skipping write for empty DataFrame without schema: {table_name}")
+            return True
+            
         engine = get_db_connection()
         logger.info(f"Writing {len(df)} rows to table {table_name}")
-        logger.debug(f"DataFrame contents: {df.to_dict()}")
+        
+        # Define default schemas for empty DataFrames
+        default_schemas = {
+            'metadata_athletes': {
+                'id': 'str',
+                'sex': 'str',
+                'weight': 'float',
+                'zones': 'str'
+            },
+            'metadata_blocks': {
+                'athlete_id': 'str',
+                'vdot': 'float',
+                'vdot_delta': 'float',
+                'predicted_marathon_time': 'float',
+                'pb_date': 'datetime64[ns]',
+                'block_id': 'str'
+            },
+            'all_athlete_activities': {
+                'athlete_id': 'str',
+                'block_id': 'str',
+                'week_id': 'str',
+                'activity_type': 'int',
+                'activity_id': 'str',
+                'elapsed_time': 'float',
+                'distance': 'float',
+                'mean_hr': 'float',
+                'stdev_hr': 'float',
+                'freq_hr': 'float',
+                'time_in_z1': 'float',
+                'time_in_z2': 'float',
+                'time_in_z3': 'float',
+                'time_in_z4': 'float',
+                'time_in_z5': 'float',
+                'elevation': 'float',
+                'stdev_elevation': 'float',
+                'freq_elevation': 'float',
+                'pace': 'float',
+                'stdev_pace': 'float',
+                'freq_pace': 'float',
+                'cadence': 'float',
+                'athlete_count': 'float'
+            },
+            'all_athlete_weeks': {
+                'athlete_id': 'str',
+                'block_id': 'str',
+                'week_id': 'str',
+                'f_total_runs': 'int',
+                'f_total_run_distance': 'float',
+                'f_total_run_time': 'float',
+                'f_total_non_run_distance': 'float',
+                'f_total_non_run_time': 'float'
+            },
+            'features_activities': {
+                'athlete_id': 'str',
+                'block_id': 'str',
+                'week_id': 'str',
+                'activity_type': 'int',
+                'activity_id': 'str',
+                'elapsed_time': 'float',
+                'distance': 'float',
+                'mean_hr': 'float'
+            },
+            'features_weeks': {
+                'athlete_id': 'str',
+                'block_id': 'str',
+                'week_id': 'str',
+                'f_total_runs': 'int',
+                'f_run_distance': 'float',
+                'f_run_time': 'float',
+                'f_non_run_distance': 'float',
+                'f_non_run_time': 'float'
+            },
+            'features_blocks': {
+                'athlete_id': 'str',
+                'block_id': 'str',
+                'y_vdot_delta': 'float',
+                'y_vdot': 'float',
+                'f_slope_run_distance': 'float',
+                'f_slope_run_time': 'float',
+                'f_slope_mean_run_hr': 'float',
+                'f_taper_factor_run_distance': 'float',
+                'f_taper_factor_run_time': 'float',
+                'f_taper_factor_mean_run_hr': 'float'
+            },
+            'average_paces_and_hrs': {
+                'athlete_id': 'str',
+                'mean_hr': 'float',
+                'pace': 'float'
+            }
+        }
+        
+        # If DataFrame is empty but we have a schema, create with schema
+        if df.empty and table_name in default_schemas:
+            df = pd.DataFrame(columns=default_schemas[table_name].keys())
+            for col, dtype in default_schemas[table_name].items():
+                df[col] = pd.Series(dtype=dtype)
         
         # Convert DataFrame to SQL
         df.to_sql(
@@ -84,6 +185,48 @@ def test_conn_new():
         return "Connection successful!"
     except Exception as e:
         return f"Connection failed: {str(e)}"
+
+def reset_database():
+    """Safely reset all tables"""
+    try:
+        db.session.execute(text('SET FOREIGN_KEY_CHECKS = 0'))
+        db.session.commit()
+        
+        # List of tables to truncate
+        tables = [
+            'activities',
+            'athlete_stats',
+            'metadata_athletes',
+            'metadata_blocks',
+            'all_athlete_activities',
+            'all_athlete_weeks',
+            'features_activities',
+            'features_weeks',
+            'features_blocks',
+            'average_paces_and_hrs',
+            'processing_status',
+            'daily_limit'
+        ]
+        
+        # Truncate all tables
+        for table in tables:
+            try:
+                db.session.execute(text(f'TRUNCATE TABLE {table}'))
+                logger.info(f"Truncated table: {table}")
+            except Exception as e:
+                logger.warning(f"Could not truncate {table}: {e}")
+        
+        # Reinitialize daily_limit with 0
+        db.session.execute(text("INSERT INTO daily_limit (daily) VALUES (0)"))
+        
+        db.session.execute(text('SET FOREIGN_KEY_CHECKS = 1'))
+        db.session.commit()
+        logger.info("Database reset completed successfully")
+        return True
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error resetting database: {e}")
+        return False
 
 """
 processing_status = read_db('processing_status')

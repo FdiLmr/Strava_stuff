@@ -8,9 +8,12 @@ import logging
 from models import Activity, AthleteStats
 from datetime import datetime
 from flask import current_app
+import json
 
 logger = logging.getLogger(__name__)
 
+DEBUG_MODE = True  # Set to False in production
+ACTIVITIES_LIMIT = 10 if DEBUG_MODE else 90
 
 def refresh_tokens():    
     try:
@@ -38,7 +41,7 @@ def refresh_tokens():
         logger.error(f"Error refreshing tokens: {e}")
         return 1
 
-def get_unprocessed_activities(activity_list, existing_ids, limit=90):
+def get_unprocessed_activities(activity_list, existing_ids, limit=ACTIVITIES_LIMIT):
     """Helper function to get activities we haven't processed yet"""
     new_activities = []
     for activity in activity_list:
@@ -48,9 +51,40 @@ def get_unprocessed_activities(activity_list, existing_ids, limit=90):
             new_activities.append(activity)
     return new_activities
 
-def update_data():          
+def save_activity_data(athlete_id: int, activities: list, timestamp: str = None) -> None:
+    """Save activities to a JSON file with timestamp."""
+    if timestamp is None:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    # Create data directory if it doesn't exist
+    data_dir = './data'
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    
+    filename = f'{data_dir}/athlete_{athlete_id}_activities.json'
+    
+    # Load existing data if file exists
+    existing_data = {}
+    if os.path.exists(filename):
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+        except json.JSONDecodeError:
+            logger.warning(f"Could not read existing file {filename}, creating new one")
+    
+    # Add new data with timestamp
+    existing_data[timestamp] = activities
+    
+    # Save updated data
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(existing_data, f, indent=2)
+    
+    logger.info(f"Saved {len(activities)} activities to {filename}")
+
+def fetch_strava_data():
+    """Fetch data from Strava API and store in files and activity table."""
     start_time = time.time()
-    total_activities_processed = 0
+    total_activities_fetched = 0
     athletes_processed = 0
     
     # Get initial API call count
@@ -131,7 +165,7 @@ def update_data():
                     GET ACTIVITY LIST
                     -----------------
                     """
-                    activities_to_process = 90  # Safe limit for 15-min window
+                    activities_to_process = ACTIVITIES_LIMIT  # Changed from hardcoded 90
                     all_activities = []
                     page = 1
                     
@@ -163,6 +197,9 @@ def update_data():
                         time.sleep(1.5)  # Ensure we don't hit rate limits
                     
                     logger.info(f"Found {len(all_activities)} total activities, {len(unprocessed)} new ones")
+                    
+                    # Check if there are more activities to process later
+                    has_more_activities = len(all_activities) > len(existing_ids) + activities_to_process
                     
                     # Store what we found, even if zero new activities
                     activities = []
@@ -228,34 +265,58 @@ def update_data():
                     athlete_data["_Stats"] = athlete_stats
                     athlete_data["_Activities"] = activities
                     
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+                    try:
+                        # Save raw API data first
+                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                        
+                        # After getting athlete data
+                        save_activity_data(athlete_id, [athlete_data], f"{timestamp}_athlete")
+                        save_activity_data(athlete_id, [athlete_zones], f"{timestamp}_zones")
+                        save_activity_data(athlete_id, [athlete_stats], f"{timestamp}_stats")
+                        
+                        # After getting detailed activities
+                        if len(activities) > 0:
+                            save_activity_data(athlete_id, activities, f"{timestamp}_detailed")
+                        
+                    except Exception as e:
+                        logger.error(f"Error in data processing: {e}")
+                        daily_limit.at[0, 'daily'] = current_api_calls
+                        write_db_replace(daily_limit,'daily_limit')                                
+                        processing_status.at[index, 'status'] = 'none'
+                        return f'failure processing athlete {athlete_id}: {str(e)}'
+                    
                 except Exception as ex:                    
                     daily_limit.at[0, 'daily'] = current_api_calls
                     write_db_replace(daily_limit,'daily_limit')                                
                     processing_status.at[index, 'status'] = 'none'
                     return ('failure processing athlete ' + str(row['athlete_id']) + ': ' + str(ex))          
                                                 
-                transform_athlete_data(athlete_id, athlete_data)
-                
-                # Update status to processed
-                processing_status.at[index, 'status'] = 'processed'
+                # Only update status to processed if no more activities to fetch
+                if not has_more_activities:
+                    processing_status.at[index, 'status'] = 'processed'
                 write_db_replace(processing_status, 'processing_status')
                 
                 daily_limit.at[0, 'daily'] = current_api_calls
                 write_db_replace(daily_limit, 'daily_limit')       
 
                 print ('successfully processed athlete ' + str(athlete_id))     
+                if has_more_activities:
+                    print(f'There are more activities to process for athlete {athlete_id}')
 
                 # After successfully processing activities
                 activities_count = len(activities)
-                total_activities_processed += activities_count
+                total_activities_fetched += activities_count
                 athletes_processed += 1
                 processing_time = time.time() - athlete_start_time
                 
+                avg_time_per_activity = processing_time / activities_count if activities_count > 0 else 0
                 logger.info(f"""
                     Athlete {athlete_id} processing complete:
                     - Activities processed: {activities_count}
                     - Processing time: {processing_time:.2f} seconds
-                    - Average time per activity: {processing_time/activities_count:.2f} seconds
+                    - Average time per activity: {avg_time_per_activity:.2f} seconds
                     - Current API calls: {current_api_calls}/25000
                 """)
     
@@ -264,13 +325,13 @@ def update_data():
     
     # Fix division by zero
     avg_time_per_athlete = total_time / athletes_processed if athletes_processed > 0 else 0
-    avg_time_per_activity = total_time / total_activities_processed if total_activities_processed > 0 else 0
+    avg_time_per_activity = total_time / total_activities_fetched if total_activities_fetched > 0 else 0
     
     summary = f"""
-    Processing Complete:
+    Data Fetch Complete:
     ===================
     Athletes processed: {athletes_processed}/{athletes_to_process if athletes_to_process > 0 else 'None'}
-    Total activities: {total_activities_processed}
+    Total activities: {total_activities_fetched}
     Total processing time: {total_time:.2f} seconds
     Average time per athlete: {avg_time_per_athlete:.2f} seconds
     Average time per activity: {avg_time_per_activity:.2f} seconds
@@ -281,4 +342,34 @@ def update_data():
     """
     
     logger.info(summary)
+    return summary
+
+def process_stored_data():
+    """Process stored data files into analytics tables."""
+    start_time = time.time()
+    total_activities_processed = 0
+    athletes_processed = 0
+    
+    processing_status = read_db('processing_status')
+    athletes_to_process = len(processing_status[processing_status['status'] == 'none'])
+    
+    for index, row in processing_status.iterrows():
+        athlete_id = int(row['athlete_id'])
+        if athlete_id != 0 and row['status'] in ["none", "processing"]:
+            try:
+                transform_athlete_data(athlete_id, populate_all_from_files=1)
+                athletes_processed += 1
+                # Only mark as processed if transform was successful
+                processing_status.at[index, 'status'] = 'processed'
+                write_db_replace(processing_status, 'processing_status')
+            except Exception as e:
+                logger.error(f"Error processing athlete {athlete_id}: {e}")
+                continue
+    
+    summary = f"""
+    Processing Complete:
+    ===================
+    Athletes processed: {athletes_processed}
+    Total processing time: {time.time() - start_time:.2f} seconds
+    """
     return summary

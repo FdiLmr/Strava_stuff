@@ -185,9 +185,9 @@ def process_pb_blocks(activities: List[dict], athlete_id: str, zones: List[int],
         if len(significant_pbs) == 1:
             vdot_delta = 0 
         else:
-            # If this is the first PB, compare to the next PB
+            # If this is the first PB, delta is 0 ? Maybe better thing to do here
             if i == 0:
-                vdot_delta = significant_pbs[i+1][0] - significant_pbs[i][0]
+                vdot_delta = 0
             # Otherwise, compare this PB to the previous PB
             else:
                 vdot_delta = significant_pbs[i][0] - significant_pbs[i-1][0]

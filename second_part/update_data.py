@@ -1,19 +1,19 @@
-from second_part.sql_methods import write_db_replace, write_db_insert, read_db, db
-from second_part.athlete_data_transformer import transform_athlete_data
+from sql_methods import write_db_replace, write_db_insert, read_db, db
+from athlete_data_transformer import transform_athlete_data
 import requests
 import pandas as pd
 import time
 import os
 import logging
-from second_part.models import Activity, AthleteStats
+from models import Activity, AthleteStats
 from datetime import datetime
 from flask import current_app
 import json
 
 logger = logging.getLogger(__name__)
 
-DEBUG_MODE = False  # Set to False in production
-ACTIVITIES_LIMIT = 10 if DEBUG_MODE else 90
+DEBUG_MODE = True  # Set to False in production
+ACTIVITIES_LIMIT = 1 if DEBUG_MODE else 90
 
 def refresh_tokens():    
     try:

@@ -7,8 +7,8 @@ import os
 import logging
 import urllib.parse
 from sqlalchemy import inspect, text
-from second_part.sql_methods import init_db, db, test_conn_new, read_db, write_db_replace
-from second_part.models import ProcessingStatus, Activity, AthleteStats  # Add this import
+from sql_methods import init_db, db, test_conn_new, read_db, write_db_replace
+from models import ProcessingStatus, Activity, AthleteStats  # Add this import
 
 # Configure logging first
 logging.basicConfig(level=logging.DEBUG)

@@ -10,9 +10,9 @@ import ast
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Union
 import logging
-from second_part.sql_methods import write_db_replace, read_db
-from second_part.search_functions import get_weeks, get_block
-from second_part.running_functions import (
+from sql_methods import write_db_replace, read_db
+from search_functions import get_weeks, get_block
+from running_functions import (
     build_pace_to_hr_regressor, 
     extract_activity_features,
     extract_week_features,

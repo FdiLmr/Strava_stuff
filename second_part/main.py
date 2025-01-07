@@ -11,6 +11,7 @@ from sql_methods import init_db, db, test_conn_new, read_db, write_db_replace
 from models import ProcessingStatus, Activity, AthleteStats  # Add this import
 from visualisations import athletevsbest, athletevsbestimprovement
 import random
+from train_model import train_model
 
 # Configure logging first
 logging.basicConfig(level=logging.DEBUG)
@@ -376,6 +377,48 @@ def visualize(athlete_id):
         athlete_id=athlete_id,
         random_num=random.randint(1, 1000000)  # Cache busting
     )
+
+@app.route('/model_results/<athlete_id>')
+def model_results(athlete_id):
+    """Display model results and SHAP plots for an athlete."""
+    try:
+        # Check if model outputs exist
+        model_outputs = read_db('model_outputs')
+        if model_outputs.empty or not any(model_outputs['athlete_id'] == athlete_id):
+            # Train model if no results exist
+            results = train_model(athlete_id)
+            return render_template('model_results.html', 
+                                athlete_id=athlete_id,
+                                model_outputs=results)
+        else:
+            # Get existing results
+            athlete_outputs = model_outputs[model_outputs['athlete_id'] == athlete_id]
+            results = {
+                'absolute_vdot_score': athlete_outputs[athlete_outputs['y_name'] == 'absolute_vdot']['model_score'].iloc[0],
+                'vdot_change_score': athlete_outputs[athlete_outputs['y_name'] == 'vdot_change']['model_score'].iloc[0]
+            }
+            return render_template('model_results.html',
+                                athlete_id=athlete_id,
+                                model_outputs=results)
+    except Exception as e:
+        logger.error(f"Error displaying model results: {e}")
+        return render_template('model_results.html',
+                            athlete_id=athlete_id,
+                            error_message=str(e))
+
+@app.route('/train_model/<athlete_id>')
+def train_model_route(athlete_id):
+    """Train model for a specific athlete."""
+    try:
+        results = train_model(athlete_id)
+        return render_template('model_results.html',
+                            athlete_id=athlete_id,
+                            model_outputs=results)
+    except Exception as e:
+        logger.error(f"Error training model: {e}")
+        return render_template('model_results.html',
+                            athlete_id=athlete_id,
+                            error_message=str(e))
 
 if __name__ == '__main__':
     app.run(debug=True)

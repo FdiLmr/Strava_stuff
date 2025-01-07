@@ -1,11 +1,11 @@
-from sql_methods import write_db_replace, write_db_insert, read_db, db
-from athlete_data_transformer import transform_athlete_data
+from second_part.sql_methods import write_db_replace, write_db_insert, read_db, db
+from second_part.athlete_data_transformer import transform_athlete_data
 import requests
 import pandas as pd
 import time
 import os
 import logging
-from models import Activity, AthleteStats
+from second_part.models import Activity, AthleteStats
 from datetime import datetime
 from flask import current_app
 import json

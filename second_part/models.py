@@ -1,4 +1,4 @@
-from sql_methods import db
+from second_part.sql_methods import db
 
 class ProcessingStatus(db.Model):
     __tablename__ = 'processing_status'

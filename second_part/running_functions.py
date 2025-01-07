@@ -6,7 +6,7 @@ from scipy import stats
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 import logging
-from activity_functions import get_non_run_activity_data, get_run_activity_data, get_run_hr_pace
+from second_part.activity_functions import get_non_run_activity_data, get_run_activity_data, get_run_hr_pace
 
 logger = logging.getLogger(__name__)
 

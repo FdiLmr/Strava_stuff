@@ -10,6 +10,7 @@ from sqlalchemy import inspect, text
 from sql_methods import init_db, db, test_conn_new, read_db, write_db_replace
 from models import ProcessingStatus, Activity, AthleteStats  # Add this import
 from visualisations import athletevsbest, athletevsbestimprovement
+import random
 
 # Configure logging first
 logging.basicConfig(level=logging.DEBUG)
@@ -366,6 +367,15 @@ def visualize_improvement(athlete_id):
     except Exception as e:
         logger.error(f"Error in improvement visualization: {e}")
         return f"Error: {str(e)}", 500
+
+@app.route('/visualize/<athlete_id>')
+def visualize(athlete_id):
+    """Render the visualization page for an athlete."""
+    return render_template(
+        'render.html',
+        athlete_id=athlete_id,
+        random_num=random.randint(1, 1000000)  # Cache busting
+    )
 
 if __name__ == '__main__':
     app.run(debug=True)

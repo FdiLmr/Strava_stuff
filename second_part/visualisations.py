@@ -3,8 +3,9 @@ import datetime
 import pandas as pd
 import io
 import math
+import matplotlib
+matplotlib.use('Agg')  # Set non-interactive backend before importing pyplot
 import matplotlib.pyplot as plt
-import matplotlib    
 import logging
 from models import FeaturesBlock, MetadataBlock, ModelOutput
 from sqlalchemy import select, text

@@ -42,3 +42,46 @@ class Activity(db.Model):
     
     def __repr__(self):
         return f'<Activity {self.id}>'
+
+class FeaturesBlock(db.Model):
+    __tablename__ = 'features_blocks'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    athlete_id = db.Column(db.String(100))
+    block_id = db.Column(db.String(100))
+    y_vdot_delta = db.Column(db.Float)
+    y_vdot = db.Column(db.Float)
+    f_slope_run_distance = db.Column(db.Float)
+    f_slope_run_time = db.Column(db.Float)
+    f_slope_mean_run_hr = db.Column(db.Float)
+    f_taper_factor_run_distance = db.Column(db.Float)
+    f_taper_factor_run_time = db.Column(db.Float)
+    f_taper_factor_mean_run_hr = db.Column(db.Float)
+
+    def __repr__(self):
+        return f'<FeaturesBlock {self.block_id}>'
+
+class MetadataBlock(db.Model):
+    __tablename__ = 'metadata_blocks'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    athlete_id = db.Column(db.String(100))
+    vdot = db.Column(db.Float)
+    vdot_delta = db.Column(db.Float)
+    predicted_marathon_time = db.Column(db.Float)
+    pb_date = db.Column(db.DateTime)
+    block_id = db.Column(db.String(100))
+
+    def __repr__(self):
+        return f'<MetadataBlock {self.block_id}>'
+
+class ModelOutput(db.Model):
+    __tablename__ = 'model_outputs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    y_name = db.Column(db.String(100))
+    feature_name = db.Column(db.String(100))
+    importance = db.Column(db.Float)
+
+    def __repr__(self):
+        return f'<ModelOutput {self.y_name}_{self.feature_name}>'

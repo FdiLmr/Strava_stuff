@@ -1,4 +1,4 @@
-from flask import Flask, session, request, render_template, redirect
+from flask import Flask, session, request, render_template, redirect, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_session import Session
 from environs import Env
@@ -9,6 +9,7 @@ import urllib.parse
 from sqlalchemy import inspect, text
 from sql_methods import init_db, db, test_conn_new, read_db, write_db_replace
 from models import ProcessingStatus, Activity, AthleteStats  # Add this import
+from visualisations import athletevsbest, athletevsbestimprovement
 
 # Configure logging first
 logging.basicConfig(level=logging.DEBUG)
@@ -341,6 +342,30 @@ def logout():
 def inject_user():
     """Make session available to all templates"""
     return dict(session=session)
+
+@app.route('/visualize/performance/<athlete_id>')
+def visualize_performance(athlete_id):
+    """Generate and return performance visualization."""
+    try:
+        bytes_image = athletevsbest(athlete_id)
+        if bytes_image is None:
+            return "Error generating visualization", 500
+        return send_file(bytes_image, mimetype='image/png')
+    except Exception as e:
+        logger.error(f"Error in performance visualization: {e}")
+        return f"Error: {str(e)}", 500
+
+@app.route('/visualize/improvement/<athlete_id>')
+def visualize_improvement(athlete_id):
+    """Generate and return improvement visualization."""
+    try:
+        bytes_image = athletevsbestimprovement(athlete_id)
+        if bytes_image is None:
+            return "Error generating visualization", 500
+        return send_file(bytes_image, mimetype='image/png')
+    except Exception as e:
+        logger.error(f"Error in improvement visualization: {e}")
+        return f"Error: {str(e)}", 500
 
 if __name__ == '__main__':
     app.run(debug=True)

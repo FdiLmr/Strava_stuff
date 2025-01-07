@@ -10,7 +10,11 @@ from models import FeaturesBlock, MetadataBlock, ModelOutput
 from sqlalchemy import select, text
 from flask import current_app
 
+# Configure logging
 logger = logging.getLogger(__name__)
+# Set matplotlib and PIL loggers to WARNING level only
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
+logging.getLogger('PIL').setLevel(logging.WARNING)
 
 feature_labels = {
     'f_slope_run_distance_before_taper': 'Week on week distance increase\n(metres)',
